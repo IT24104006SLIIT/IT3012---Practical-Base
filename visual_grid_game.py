@@ -226,14 +226,16 @@ class GridGameGUI:
 
 
 if __name__ == "__main__":
-    choice = sys.argv[1].lower() if len(sys.argv) > 1 else "bfs"
-    if choice in ("bfs", "dfs", "ucs"):
-        agent = SearchAgent(active_algo=choice.upper())
+    choice = sys.argv[1].lower() if len(sys.argv) > 1 else "astar"
+    heuristic = sys.argv[2].lower() if len(sys.argv) > 2 else "manhattan"
+    algo_names = {"bfs": "BFS", "dfs": "DFS", "ucs": "UCS", "astar": "AStar"}
+    if choice in algo_names:
+        agent = SearchAgent(active_algo=algo_names[choice], heuristic_type=heuristic)
     elif choice.startswith("model"):
         agent = ModelBasedAgent()
     else:
         agent = SimpleReflexAgent()
-
+ 
     root = tk.Tk()
     root.title(f"IT3012 - {type(agent).__name__}")
     app = GridGameGUI(root, width=12, height=12, num_food=15, num_opponents=0, agent=agent, max_steps=400)
