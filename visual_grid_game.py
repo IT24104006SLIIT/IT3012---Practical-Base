@@ -3,7 +3,7 @@ import random
 import sys
 import tkinter as tk
 
-from agent import SimpleReflexAgent, ModelBasedAgent
+from agent import SimpleReflexAgent, ModelBasedAgent, SearchAgent
 
 # Direction -> (dx, dy). Up means y + 1
 DIRECTIONS = {'Up': (0, 1), 'Down': (0, -1), 'Left': (-1, 0), 'Right': (1, 0)}
@@ -52,9 +52,8 @@ class VisualGridHuntGame:
         self.collision = False
         self.max_steps = max_steps
 
-        # Practical 02: the agent now has a facing direction (the direction of its last move)
         self.facing = 'Right'
-        self.bumped = False  # True if the agent's last move was blocked
+        self.bumped = False  
 
     def _cell_ahead(self):
         """The adjacent cell in the agent's current facing direction."""
@@ -74,6 +73,10 @@ class VisualGridHuntGame:
             'food_here': tuple(self.agent_pos) in self.food_positions,
             'smells_toxin': tuple(self.agent_pos) in self.toxic_traps,
             'bumped': self.bumped,
+            'agent_pos': tuple(self.agent_pos),   
+            'grid_size': (self.width, self.height),
+            'walls': list(self.walls),
+            'all_food': list(self.food_positions),
         }
 
     def execute_action(self, action: str):
@@ -81,15 +84,15 @@ class VisualGridHuntGame:
         self.bumped = False
 
         if action in DIRECTIONS:
-            self.facing = action            # the agent faces the direction it tries to move
+            self.facing = action            
             target = self._cell_ahead()
             if self._is_blocked(target):
                 self.bumped = True
-                self.score -= 5             # bumping into a wall / the grid edge
+                self.score -= 5             
             else:
                 self.agent_pos = list(target)
                 if target in self.toxic_traps:
-                    self.score -= 15  # stepped onto a toxic trap
+                    self.score -= 15  
         elif action == 'Suck':
             here = tuple(self.agent_pos)
             if here in self.food_positions:
@@ -194,7 +197,6 @@ class GridGameGUI:
         self.canvas.create_oval(x1, y1, x1 + self.cell_size * 0.7, y1 + self.cell_size * 0.7, fill="#000066",
                                 outline="#1e3a8a")
 
-        # Small white dot on the agent showing which way it is facing
         dx, dy = DIRECTIONS[self.env.facing]
         cx = x1 + self.cell_size * 0.35
         cy = y1 + self.cell_size * 0.35
@@ -214,7 +216,7 @@ class GridGameGUI:
 
                 self.draw_grid()
                 self.label.config(text=f"Score: {self.env.score} | Steps: {self.env.steps} | Action: {action} | Facing: {self.env.facing}")
-                self.root.after(1000, step)
+                self.root.after(250, step)
             else:
                 end_text = f"Collision! Game Over! Final Score: {self.env.score}" if self.env.collision else f"Finished! Final Score: {self.env.score}"
                 self.label.config(text=end_text)
@@ -224,12 +226,15 @@ class GridGameGUI:
 
 
 if __name__ == "__main__":
-    # Usage:  python visual_grid_game.py simple   (Step 1.2: Simple Reflex Agent, the default)
-    #         python visual_grid_game.py model    (Step 1.3: Model-Based Agent)
-    choice = sys.argv[1].lower() if len(sys.argv) > 1 else "simple"
-    agent = ModelBasedAgent() if choice.startswith("model") else SimpleReflexAgent()
+    choice = sys.argv[1].lower() if len(sys.argv) > 1 else "bfs"
+    if choice in ("bfs", "dfs", "ucs"):
+        agent = SearchAgent(active_algo=choice.upper())
+    elif choice.startswith("model"):
+        agent = ModelBasedAgent()
+    else:
+        agent = SimpleReflexAgent()
 
     root = tk.Tk()
     root.title(f"IT3012 - {type(agent).__name__}")
-    app = GridGameGUI(root, width=12, height=12, num_food=15, num_opponents=0, agent=agent, max_steps=150)
+    app = GridGameGUI(root, width=12, height=12, num_food=15, num_opponents=0, agent=agent, max_steps=400)
     root.mainloop()
