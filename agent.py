@@ -4,9 +4,10 @@ import math
 import random
 from collections import deque
 
+from logic_engine import KnowledgeBase
+
 MOVES = {'Up': (0, 1), 'Down': (0, -1), 'Left': (-1, 0), 'Right': (1, 0)}
 MOVE_ORDER = ['Up', 'Right', 'Down', 'Left'] 
-
 
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
@@ -21,10 +22,7 @@ class GreedyGridAgent:
 
 # ===================Practical 02 - Step 1.2: Simple Reflex Agent=============================
 class SimpleReflexAgent:
-    """Strict IF-THEN (Condition-Action) rules on the CURRENT percept only.
-
-    There is deliberately no __init__ and no attributes: the agent has zero memory.
-    """
+   """Strict IF-THEN rules on the CURRENT percept only (no __init__, no memory)."""
 
     def sense_and_act(self, percept: dict) -> str:
                     # Rule 1: IF food_here THEN Suck
@@ -116,6 +114,10 @@ class SearchAgent:
         self.heuristic_type = heuristic_type  
         self.last_expanded = 0            
 
+        self.kb = KnowledgeBase()
+        self.kb.tell_rule(['TargetVisible', 'HasDust'], 'SafeToEngage')
+        self.kb.tell_rule(['SafeToEngage', 'BloodseekerMissing'], 'Retreat')
+       
     # Step 1.1: heuristic functions 
     def manhattan_distance(self, pos, goal):
         """h(n) = |x1 - x2| + |y1 - y2|"""
@@ -193,10 +195,11 @@ class SearchAgent:
         return None
 
     # Step 1.2: A* search, f(n) = g(n) + h(n) 
-    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan'):
+    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan', tile_facts=None):
+        tile_facts = tile_facts if tile_facts is not None else {}
         start, goal, walls = tuple(start_pos), tuple(goal_pos), {tuple(w) for w in walls}
         h = self.manhattan_distance if heuristic_type == 'manhattan' else self.euclidean_distance
-
+        
         frontier = []                     
         reached_states = set()
         self.last_expanded = 0
@@ -216,6 +219,14 @@ class SearchAgent:
             for action, nxt in self._successors(current_pos, walls, grid_size):
                 if nxt in reached_states:
                     continue
+
+                self.kb.clear_facts()
+                for fact in tile_facts.get(nxt, []):
+                    self.kb.tell_fact(fact)
+                self.kb.forward_chain()
+                if 'Retreat' in self.kb.facts:
+                    continue 
+
                 g_new = g_cost + 1       
                 h_new = h(nxt, goal)
                 f_new = g_new + h_new
@@ -226,7 +237,12 @@ class SearchAgent:
     def sense_and_act(self, percept: dict) -> str:
         if percept.get('bumped'):
             self.plan = []                        
-        if not self.plan:                             
+        if not self.plan:  
+
+            tile_facts = {
+                (1, 0): ['TargetVisible', 'HasDust', 'BloodseekerMissing'], 
+                (0, 1): ['TargetVisible', 'HasDust'],  
+                
             # Step 1.3: choose the search that matches self.active_algo
             if self.active_algo == 'BFS':
                 search = self.bfs_search
@@ -257,9 +273,7 @@ class SearchAgent:
                 return path + ['Suck']               
         return []
 
-
-if __name__ == "__main__":
-    # Step 1.1 testing checkpoint: start (0, 0), goal (3, 4)
-    checker = SearchAgent()
-    print("Manhattan:", checker.manhattan_distance((0, 0), (3, 4)))   
-    print("Euclidean:", checker.euclidean_distance((0, 0), (3, 4)))   
+class SearchAgentPlaceholder:
+    """Kept only so earlier imports referencing it don't break; superseded by SearchAgent above."""
+    pass
+ 
